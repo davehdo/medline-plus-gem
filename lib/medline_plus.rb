@@ -8,7 +8,7 @@ module MedlinePlus
   # returns search results
   # [{"Aspirin"=>"http://www.nlm.nih.gov/medlineplus/druginfo/meds/a682878.html"}, ...]
   def self.search_drug( query )
-    url = Addressable::URI.parse("http://apps.nlm.nih.gov/medlineplus/services/mpconnect_service.cfm")
+    url = Addressable::URI.parse("https://apps.nlm.nih.gov/medlineplus/services/mpconnect_service.cfm")
     url.query_values = {"mainSearchCriteria.v.cs" => "2.16.840.1.113883.6.69", "mainSearchCriteria.v.dn" => query, "informationRecipient.languageCode.c" => "en"}
 
     req = Net::HTTP::Get.new(url.to_s)
@@ -21,16 +21,24 @@ module MedlinePlus
     results
   end
   
-  # returns drug info if there exists a precise name match
+  # returns drug info if there exists a precise name match (Array)
   # [{title: "Title", body: "<p>Body in html</p>"}, ...]
   def self.find_drug_by_name( query )
     results = search_drug( query )
     if results[query.downcase]
       url = URI.parse(results[query.downcase])
+
       req = Net::HTTP::Get.new(url.to_s)
-      res = Net::HTTP.start(url.host, url.port) {|http|
-        http.request(req)
-      }
+      # req.use_ssl = true
+
+      http = Net::HTTP.new(url.host, url.port)
+      http.use_ssl = true
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE # read into this
+      res = http.get(url.request_uri)
+      
+      # res = Net::HTTP.start(url.host, url.port) {|http|
+      #   http.request(req)
+      # }
       html = Nokogiri::HTML(res.body)
       sections = html.at_css("div[id=\"mplus-content\"]").css("section").collect do |section|
         {
@@ -44,7 +52,7 @@ module MedlinePlus
   end
   
   def self.search( query )
-    url = Addressable::URI.parse("http://wsearch.nlm.nih.gov/ws/query")
+    url = Addressable::URI.parse("https://wsearch.nlm.nih.gov/ws/query")
     url.query_values = {:db => "healthTopics", :term => query}
 
     req = Net::HTTP::Get.new(url.to_s)
@@ -57,3 +65,4 @@ module MedlinePlus
   end
 
 end
+
